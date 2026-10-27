@@ -18,15 +18,6 @@ def get_used_linux_ports(proto) -> list:
                     # line = 0: 0100007F:0016 00000000:0000 0A 00000000 ...
                     fields = line.split()
 
-                    # Проверить, что в списке хотя бы 4 элемента перед обращением к fields[3]
-                    if len(fields) < 4:
-                        continue
-
-                    # Для TCP учитывать только TCP-порты, на которых сервер ожидает входящие подключения (состояние LISTEN)
-                    # У UDP нет TCP-подобного состояния LISTEN: это протокол без установления соединения
-                    if proto == "TCP" and fields[3] != '0A':
-                        continue
-
                     try:
                         # Извлечь номер порта из строки, перевести из шестнадцатеричной системы счисления в десятичную
                         # Один раз разбить строку по : от правого края и привести второй элемент к числу в десятичной системе
@@ -76,7 +67,6 @@ def to_ranges(numbers: list):
     return ", ".join(result)
 
 def ask_yes_no(prompt) -> bool:
-    """Спросить у пользователя да/нет и вернуть True/False."""
     while True:
         answer = input(prompt).strip().lower()
         if answer in ("y", "yes"):
@@ -86,8 +76,7 @@ def ask_yes_no(prompt) -> bool:
         print("Please answer 'y' or 'n'.")
 
 
-def ask_int(prompt, min=None, max=None) -> int:
-    """Запросить ввод с терминала: целое число в заданном диапазоне"""
+def ask_int(prompt, min_value=None, max_value=None) -> int:
     while True:
         answer = input(prompt).strip()
         try:
@@ -96,11 +85,11 @@ def ask_int(prompt, min=None, max=None) -> int:
             print("Please enter a whole number.")
             continue
 
-        if min is not None and value < min:
-            print(f"Please enter a number of at least {min}.")
+        if min_value is not None and value < min_value:
+            print(f"Please enter a number of at least {min_value}.")
             continue
-        if max is not None and value > max:
-            print(f"Please enter a number of at most {max}.")
+        if max_value is not None and value > max_value:
+            print(f"Please enter a number of at most {max_value}.")
             continue
 
         return value
@@ -108,10 +97,8 @@ def ask_int(prompt, min=None, max=None) -> int:
 
 def main():
     used_tcp = get_used_linux_ports("TCP")
-    used_udp = get_used_linux_ports("UDP")
 
-    print(f"TCP: {to_ranges(used_tcp)}")
-    print(f"UDP: {to_ranges(used_udp)}")
+    print(f"Ports in use (TCP): {to_ranges(used_tcp)}")
 
     # Сначала уточнить, нужно ли подбирать свободные порты или только показать занятые
     select_free = ask_yes_no("Select free TCP ports? (y/n): ")
@@ -119,14 +106,14 @@ def main():
     if not select_free:
         return
 
-    start = ask_int("Enter the start of the TCP port range: ", min=1, max=65535)
+    start = ask_int("Enter the start of the TCP port range: ", min_value=1, max_value=65535)
     while True:
-        end = ask_int("Enter the end of the TCP port range: ", min=1, max=65535)
+        end = ask_int("Enter the end of the TCP port range: ", min_value=1, max_value=65535)
         if end >= start:
             break
         print("The end of the range must be greater than or equal to the start.")
 
-    count = ask_int("How many free ports do you need? ", min=1)
+    count = ask_int("How many free ports do you need? ", min_value=1)
 
     used = set(used_tcp)
     free_ports = [port for port in range(start, end + 1) if port not in used]
