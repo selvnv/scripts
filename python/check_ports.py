@@ -1,4 +1,3 @@
-PROTO = ["TCP", "UDP"]
 # Проверка на основе данных на файловой системе
 FILES = {
     "TCP": ("/proc/net/tcp", "/proc/net/tcp6"),
@@ -76,10 +75,71 @@ def to_ranges(numbers: list):
 
     return ", ".join(result)
 
+def ask_yes_no(prompt) -> bool:
+    """Спросить у пользователя да/нет и вернуть True/False."""
+    while True:
+        answer = input(prompt).strip().lower()
+        if answer in ("y", "yes"):
+            return True
+        if answer in ("n", "no"):
+            return False
+        print("Please answer 'y' or 'n'.")
+
+
+def ask_int(prompt, min=None, max=None) -> int:
+    """Запросить ввод с терминала: целое число в заданном диапазоне"""
+    while True:
+        answer = input(prompt).strip()
+        try:
+            value = int(answer)
+        except ValueError:
+            print("Please enter a whole number.")
+            continue
+
+        if min is not None and value < min:
+            print(f"Please enter a number of at least {min}.")
+            continue
+        if max is not None and value > max:
+            print(f"Please enter a number of at most {max}.")
+            continue
+
+        return value
+
+
 def main():
-    for protocol in PROTO:
-        ports = get_used_linux_ports(protocol)
-        print(f"{protocol}: {to_ranges(ports)}")
+    used_tcp = get_used_linux_ports("TCP")
+    used_udp = get_used_linux_ports("UDP")
+
+    print(f"TCP: {to_ranges(used_tcp)}")
+    print(f"UDP: {to_ranges(used_udp)}")
+
+    # Сначала уточнить, нужно ли подбирать свободные порты или только показать занятые
+    select_free = ask_yes_no("Select free TCP ports? (y/n): ")
+
+    if not select_free:
+        return
+
+    start = ask_int("Enter the start of the TCP port range: ", min=1, max=65535)
+    while True:
+        end = ask_int("Enter the end of the TCP port range: ", min=1, max=65535)
+        if end >= start:
+            break
+        print("The end of the range must be greater than or equal to the start.")
+
+    count = ask_int("How many free ports do you need? ", min=1)
+
+    used = set(used_tcp)
+    free_ports = [port for port in range(start, end + 1) if port not in used]
+
+    if len(free_ports) >= count:
+        print(f"Free TCP ports in {start}-{end}: {to_ranges(free_ports[:count])}")
+    else:
+        print(
+            f"Not enough free TCP ports in {start}-{end}: "
+            f"requested {count}, found {len(free_ports)}."
+        )
+        if free_ports:
+            print(f"Free TCP ports in {start}-{end}: {to_ranges(free_ports)}")
 
 if __name__ == "__main__":
     main()
